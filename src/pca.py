@@ -1,12 +1,17 @@
+from morph import Morph
+
 import numpy as np
 from sklearn.decomposition import PCA
-from morph import Morph
+import pandas as pd
 
 class PCAMorph(Morph):
     """
-    Variant on the simple morphing that uses eigenvectors for a smooth transition
+    Variant on the simple morphing that uses eigenvectors for a smooth transition.
+    Results are not satifactory.
     """
     data = None
+    pca = None
+    dim = None
 
     def __init__(self, data):
         """
@@ -14,9 +19,15 @@ class PCAMorph(Morph):
 
         :param data: array of all images [n][x][y][c]
         """
-        pca = PCA(n_components=data.shape[0])
-        #TODO: Not working yet
-        self.data = pca.fit(data)
+        self.dim = (data.shape[1], data.shape[2], data.shape[3])
+        images = pd.DataFrame([])
+        for i in range(0,data.shape[0]):
+            img = pd.Series(data[i].flatten(),name=(i+1))
+            images = images._append(img)
+
+        self.pca = PCA(n_components=(data.shape[0]-1))
+        self.pca.fit(images)
+        self.data = self.pca.transform(images)
 
     def transition(self, i_s, i_d, x) -> np.array:
         """
@@ -29,5 +40,7 @@ class PCAMorph(Morph):
         """
         src = self.data[i_s]
         dst = self.data[i_d]
-        img = (1.0-x)*src+x*dst
+        component = (1.0-x)*src+x*dst
+        img = self.pca.inverse_transform(component)
+        img = img.reshape(self.dim)
         return img
